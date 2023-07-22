@@ -42,4 +42,58 @@ class Client(ClientXMPP):
         self.register_plugin('xep_0096') # File transfer
         self.register_plugin('xep_0231') # BOB
 
+    def serverOnRegis(self, event):
+        # Set the status of the chat to 'available'
+        self.set_status('chat', 'available')
+        
+        # Update the roster for the first time
+        self.update_roster(firts_time=True)  # Typo: 'firts_time' should be 'first_time'
+        
+        # Mark the connection as established
+        self.connected = True
+
+    def sendMessages(self, messageToSend):
+        show_response = True  # Initialize a flag to indicate whether to show a response
+        
+        if messageToSend['type'] == 'groupchat':
+            nick = messageToSend['mucnick']  # Get the sender's nickname
+            
+            # Check if the sender is the same as the bound user, don't show the response
+            if nick == self.boundidUser.user:
+                show_response = False
+            else:
+                # Extract room name from 'from' attribute
+                room = messageToSend['from'].bare.split('@')[0]
+                message = messageToSend['body']  # Get the message body
+                
+                # Print and store the message with room information
+                print(f'\n[{room}] {nick}: {message}')
+                self.rooms[room].append(f'[{room}] {nick}: {message}')
+                self.to_chat_type = 'room'  # Set the chat type to 'room'
+                self.message_receiver = room  # Set the message receiver as the room name
+        else:
+            # Extract user name from 'from' attribute
+            user = messageToSend['from'].bare.split('@')[0]
+            
+            # Check if the sender is the same as the bound user, don't show the response
+            if user == self.boundidUser.user:
+                show_response = False
+            else:
+                # Print the message with user information
+                print(f'\n{user}: {messageToSend["body"]}')
+                
+                # Loop through the contacts to find the matching user and add the message
+                for contact in self.contacts:
+                    if contact.idUser == user + SERVER:  # Assumes SERVER is defined elsewhere
+                        contact.add_message(f'{user}: {messageToSend["body"]}')
+                        self.to_chat_type = 'contact'  # Set the chat type to 'contact'
+                        self.message_receiver = user  # Set the message receiver as the user name
+                        break
+        
+        # If show_response is True, ask if the user wants to answer
+        if show_response:
+            print("Wanna answer? (Y/n)")
+            self.to_chat = True  # Set 'to_chat' flag to indicate a response is expected
+
+
     
