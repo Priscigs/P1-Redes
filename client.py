@@ -52,6 +52,43 @@ class Client(ClientXMPP):
         # Mark the connection as established
         self.connected = True
 
+    # Register 
+    def registerServer(self, event):
+        # Check if registration is in progress
+        if self.registering:
+            # Create a new IQ (Info/Query) packet
+            iq = self.Iq()
+            
+            # Set the IQ packet type to 'set'
+            iq['type'] = 'set'
+            
+            # Set the registration information in the IQ packet
+            iq['register']['username'] = self.boundidUser.user  
+            iq['register']['password'] = self.password  
+            iq['register']['name'] = self.name  
+            iq['register']['email'] = self.email  
+            
+            try:
+                # Send the IQ packet immediately (now=True)
+                iq.send(now=True)
+            except IqError as e:
+                # Handle an IQ error by printing the IQ packet that caused it
+                print(e.iq)
+            except IqTimeout:
+                # Handle a timeout error by printing a message
+                print('Times Up! ⏳')
+
+    # A notification will pop up when someone added you as a friend
+    def subscribe(self, presence):
+        username = presence['from'].bare
+        print(f'\n{username} wants to add you as a friend 🥳')
+
+    # A notification will pop up when someone removed you from their friend's list
+    def unsubscribe(self, presence):
+        username = presence['from'].bare
+        print(f'\n{username} has removed you from their friends list 🤡')
+
+    # Send a message to an user
     def sendMessages(self, messageToSend):
         show_response = True  # Initialize a flag to indicate whether to show a response
         
