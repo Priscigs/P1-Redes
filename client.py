@@ -22,8 +22,8 @@ class Client(ClientXMPP):
         self.connected = False
         self.add_event_handler('session_start', self.serverOnRegis)
         self.add_event_handler("register", self.registerServer)
-        self.add_event_handler("presence_subscribe", self.subscribe)
-        self.add_event_handler("presence_unsubscribe", self.unsubscribe)
+        self.add_event_handler("onOff_subscribe", self.subscribe)
+        self.add_event_handler("onOff_unsubscribe", self.unsubscribe)
         self.add_event_handler("got_offline", self.offlineServer)
         self.add_event_handler("got_online", self.onlineServer)
         self.add_event_handler("message", self.sendMessages)
@@ -79,14 +79,50 @@ class Client(ClientXMPP):
                 print('Times Up! ⏳')
 
     # A notification will pop up when someone added you as a friend
-    def subscribe(self, presence):
-        username = presence['from'].bare
-        print(f'\n{username} wants to add you as a friend 🥳')
+    def subscribe(self, onOff):
+        username = onOff['from'].bare
+        message = f'{username} wants to add you as a friend 🥳'
+        print(f'\n{message}')
 
     # A notification will pop up when someone removed you from their friend's list
-    def unsubscribe(self, presence):
-        username = presence['from'].bare
-        print(f'\n{username} has removed you from their friends list 🤡')
+    def unsubscribe(self, onOff):
+        username = onOff['from'].bare
+        message = f'{username} has removed you from their friends list 🤡'
+        print(f'\n{message}')
+
+    # A notification will pop uo when someone's offline the server
+    def offlineServer(self, onOff):
+        # Check if the bound user's bare JID (Jabber ID) is not in the 'from' attribute of the onOff
+        if self.boundidUser.bare not in str(onOff['from']):
+            # Convert the 'from' attribute to a user-friendly username
+            u = self.idUser_to_user(str(onOff['from']))
+            
+            # Print a message indicating that a user has disconnected from the server
+            print(f'\n{u} has disconnected from the server')
+            
+            # Iterate through the contacts to find and remove the disconnected user
+            for i in self.contacts:
+                if i.idUser == str(onOff['from']):
+                    # Remove the user from the contacts list
+                    self.contacts.remove(i)  
+                    break
+
+    # A notification will pop up when someone's online the server
+    def onlineServer(self, onOff):
+        # Check if the bound user's bare JID (Jabber ID) is not in the 'from' attribute of the onOff
+        if self.boundidUser.bare not in str(onOff['from']):
+            # Convert the 'from' attribute to a user-friendly username
+            u = self.idUser_to_user(str(onOff['from']))
+            
+            # Print a message indicating that a user is connected to the server
+            print(f'\n{u} is connected to the server')
+            
+            # Iterate through the contacts to find and update the online status of the connected user
+            for i in self.contacts:
+                if i.idUser == str(onOff['from']):
+                    # Set the online status of the user to True
+                    i.online = True  
+                    break
 
     # Send a message to an user
     def sendMessages(self, messageToSend):
@@ -132,5 +168,21 @@ class Client(ClientXMPP):
             print("Wanna answer? (Y/n)")
             self.to_chat = True  # Set 'to_chat' flag to indicate a response is expected
 
+    # A notification woll pop up when a status has changed
+    def status(self, onOff):
+        username = onOff['from'].bare
+        user_status = self.client_roster.onOff[username]['status']
+        message = f'\n{username} has changed his/her status to: {user_status}'
+        
+        print(user_status)
+        print(message)
 
-    
+    # A notification will pop up when you're invited to a new eoom
+    def groupChatInvitation(self, inv):
+        print('\nRoom Invitation 👾')
+
+    # Failed connection
+    def failedConnectionServer(self, error):
+        print(f'\nError!!! ❌: {error}\nPress "Enter" to try again!!')
+        self.connected = False
+        self.disconnect()
