@@ -1,36 +1,36 @@
 import base64
-from userDetails import userDetails
 from sleekxmpp import ClientXMPP
 from sleekxmpp.xmlstream.stanzabase import ET
 from sleekxmpp.exceptions import IqTimeout, IqError
 from sleekxmpp.plugins.xep_0004.stanza.form import Form
+from userDetails import userDetails
 
 SERVER = '@alumchat.xyz'
 ROOM_SERVER = '@conference.alumchat.xyz'
-PORT = 3000
+PORT = 5222
 
 class Client(ClientXMPP):
-    def __init__(self, idUser, password, name=None, email=None, registering=False):
-        ClientXMPP.__init__(self, idUser, password)
+    def __init__(self, jid, password, Name=None, Email=None, registering=False):
+        ClientXMPP.__init__(self, jid, password)
         self.password = password
-        self.name = name
-        self.email = email
+        self.Name = Name
+        self.Email = Email
         self.registering = registering # True if client was created for registration, False if client was created for login
         self.to_chat = False # Indicates if the client is waiting for a response to a message
         self.contacts = []
         self.rooms = {}
         self.connected = False
-        self.add_event_handler('session_start', self.serverOnRegis)
-        self.add_event_handler("register", self.registerServer)
-        self.add_event_handler("onOff_subscribe", self.subscribe)
-        self.add_event_handler("onOff_unsubscribe", self.unsubscribe)
-        self.add_event_handler("got_offline", self.offlineServer)
-        self.add_event_handler("got_online", self.onlineServer)
-        self.add_event_handler("message", self.sendMessages)
-        self.add_event_handler("changed_status", self.status)
-        self.add_event_handler("groupchat_invite", self.groupChatInvitation)
-        self.add_event_handler("connection_failed", self.failedConnectionServer)
-        self.add_event_handler("failed_auth", self.failedConnectionServer)
+        self.add_event_handler('session_start', self.on_session_start)
+        self.add_event_handler("register", self.on_register)
+        self.add_event_handler("presence_subscribe", self.on_presence_subscribe)
+        self.add_event_handler("presence_unsubscribe", self.on_presence_unsubscribe)
+        self.add_event_handler("got_offline", self.on_got_offline)
+        self.add_event_handler("got_online", self.on_got_online)
+        self.add_event_handler("message", self.on_message)
+        self.add_event_handler("changed_status", self.on_changed_status)
+        self.add_event_handler("groupchat_invite", self.muc_invite)
+        self.add_event_handler("connection_failed", self.on_connection_failed)
+        self.add_event_handler("failed_auth", self.on_connection_failed)
         self.register_plugin('xep_0030') # Service Discovery
         self.register_plugin('xep_0004') # Data forms
         self.register_plugin('xep_0065') # SOCKS5 Bytestreams
@@ -42,152 +42,172 @@ class Client(ClientXMPP):
         self.register_plugin('xep_0096') # File transfer
         self.register_plugin('xep_0231') # BOB
 
-    def serverOnRegis(self, event):
-        # Set the status of the chat to 'available'
-        self.set_status('chat', 'available')
-        
-        # Update the roster for the first time
-        self.update_roster(firts_time=True)  # Typo: 'firts_time' should be 'first_time'
-        
-        # Mark the connection as established
+    def on_session_start(self, event):
+        self.presenceMessage('chat', 'available')
+        self.update_roster(firts_time=True)
         self.connected = True
 
-    # Register 
-    def registerServer(self, event):
-        # Check if registration is in progress
-        if self.registering:
-            # Create a new IQ (Info/Query) packet
-            iq = self.Iq()
-            
-            # Set the IQ packet type to 'set'
-            iq['type'] = 'set'
-            
-            # Set the registration information in the IQ packet
-            iq['register']['username'] = self.boundidUser.user  
-            iq['register']['password'] = self.password  
-            iq['register']['name'] = self.name  
-            iq['register']['email'] = self.email  
-            
-            try:
-                # Send the IQ packet immediately (now=True)
-                iq.send(now=True)
-            except IqError as e:
-                # Handle an IQ error by printing the IQ packet that caused it
-                print(e.iq)
-            except IqTimeout:
-                # Handle a timeout error by printing a message
-                print('Times Up! ⏳')
-
-    # A notification will pop up when someone added you as a friend
-    def subscribe(self, onOff):
-        username = onOff['from'].bare
-        message = f'{username} wants to add you as a friend 🥳'
-        print(f'\n{message}')
-
-    # A notification will pop up when someone removed you from their friend's list
-    def unsubscribe(self, onOff):
-        username = onOff['from'].bare
-        message = f'{username} has removed you from their friends list 🤡'
-        print(f'\n{message}')
-
-    # A notification will pop uo when someone's offline the server
-    def offlineServer(self, onOff):
-        # Check if the bound user's bare JID (Jabber ID) is not in the 'from' attribute of the onOff
-        if self.boundidUser.bare not in str(onOff['from']):
-            # Convert the 'from' attribute to a user-friendly username
-            u = self.idUser_to_user(str(onOff['from']))
-            
-            # Print a message indicating that a user has disconnected from the server
-            print(f'\n{u} has disconnected from the server')
-            
-            # Iterate through the contacts to find and remove the disconnected user
-            for i in self.contacts:
-                if i.idUser == str(onOff['from']):
-                    # Remove the user from the contacts list
-                    self.contacts.remove(i)  
-                    break
-
-    # A notification will pop up when someone's online the server
-    def onlineServer(self, onOff):
-        # Check if the bound user's bare JID (Jabber ID) is not in the 'from' attribute of the onOff
-        if self.boundidUser.bare not in str(onOff['from']):
-            # Convert the 'from' attribute to a user-friendly username
-            u = self.idUser_to_user(str(onOff['from']))
-            
-            # Print a message indicating that a user is connected to the server
-            print(f'\n{u} is connected to the server')
-            
-            # Iterate through the contacts to find and update the online status of the connected user
-            for i in self.contacts:
-                if i.idUser == str(onOff['from']):
-                    # Set the online status of the user to True
-                    i.online = True  
-                    break
-
-    # Send a message to an user
-    def sendMessages(self, messageToSend):
-        show_response = True  # Initialize a flag to indicate whether to show a response
-        
-        if messageToSend['type'] == 'groupchat':
-            nick = messageToSend['mucnick']  # Get the sender's nickname
-            
-            # Check if the sender is the same as the bound user, don't show the response
-            if nick == self.boundidUser.user:
+    def on_message(self, msg):
+        show_response = True
+        # For messages received from a groupchat
+        if msg['type'] == 'groupchat':
+            # get the nick
+            nick = msg['mucnick']
+            # If you sent the message, don't show the notification
+            if nick == self.boundjid.user:
                 show_response = False
+            # For other's messages, show the notification
             else:
-                # Extract room name from 'from' attribute
-                room = messageToSend['from'].bare.split('@')[0]
-                message = messageToSend['body']  # Get the message body
-                
-                # Print and store the message with room information
+                # get the room
+                room = msg['from'].bare.split('@')[0]
+                # get the message
+                message = msg['body']
                 print(f'\n[{room}] {nick}: {message}')
+                # add the message to the room chat history
                 self.rooms[room].append(f'[{room}] {nick}: {message}')
-                self.to_chat_type = 'room'  # Set the chat type to 'room'
-                self.message_receiver = room  # Set the message receiver as the room name
+                self.to_chat_type = 'room'
+                self.message_receiver = room
+        # For messages received from an user
         else:
-            # Extract user name from 'from' attribute
-            user = messageToSend['from'].bare.split('@')[0]
-            
-            # Check if the sender is the same as the bound user, don't show the response
-            if user == self.boundidUser.user:
+            # remove all after @
+            user = msg['from'].bare.split('@')[0]
+            # If you sent the message, don't show the notification
+            if user == self.boundjid.user:
                 show_response = False
+            # For other's messages, show the notification
             else:
-                # Print the message with user information
-                print(f'\n{user}: {messageToSend["body"]}')
-                
-                # Loop through the contacts to find the matching user and add the message
+                print(f'\n{user}: {msg["body"]}')
+                # add the message to the chat history
                 for contact in self.contacts:
-                    if contact.idUser == user + SERVER:  # Assumes SERVER is defined elsewhere
-                        contact.add_message(f'{user}: {messageToSend["body"]}')
-                        self.to_chat_type = 'contact'  # Set the chat type to 'contact'
-                        self.message_receiver = user  # Set the message receiver as the user name
+                    if contact.jid == user+SERVER:
+                        contact.add_message(f'{user}: {msg["body"]}')
+                        self.to_chat_type = 'contact'
+                        self.message_receiver = user
                         break
-        
-        # If show_response is True, ask if the user wants to answer
         if show_response:
-            print("Wanna answer? (Y/n)")
-            self.to_chat = True  # Set 'to_chat' flag to indicate a response is expected
+            print("Desea responder a este mensaje? (Y/n)")
+            self.to_chat = True
 
-    # A notification woll pop up when a status has changed
-    def status(self, onOff):
-        username = onOff['from'].bare
-        user_status = self.client_roster.onOff[username]['status']
-        message = f'\n{username} has changed his/her status to: {user_status}'
-        
-        print(user_status)
-        print(message)
+    # Shows the chat history of a contact
+    def chatHis(self, jid): #show_chat
+        for contact in self.contacts:
+            if contact.jid == jid:
+                for message in contact.messages:
+                    print(message)
+                break
 
-    # A notification will pop up when you're invited to a new eoom
-    def groupChatInvitation(self, inv):
-        print('\nRoom Invitation 👾')
+    # Shows the chat history of a contact
+    def roomHis(self, room):
+        if room in self.rooms.keys():
+            for message in self.rooms[room]:
+                print(message)
+        else:
+            print('Youre not in the room! 💀')
 
-    # Failed connection
-    def failedConnectionServer(self, error):
-        print(f'\nError!!! ❌: {error}\nPress "Enter" to try again!!')
-        self.connected = False
-        self.disconnect()
+    # Shows a notification and updates the contact when someones gets offline
+    def on_got_offline(self, presence):        
+        if self.boundjid.bare not in str(presence['from']):
+            u = self.jid_to_user(str(presence['from']))
+            print(f'\n{u} se desconectó')
+            for i in self.contacts:
+                if i.jid == str(presence['from']):
+                    self.contacts.remove(i)
+                    break
 
-    # Connect to server
+    # Shows a notification and updates the contact when someones gets online
+    def on_got_online(self, presence):
+        if self.boundjid.bare not in str(presence['from']):
+            u = self.jid_to_user(str(presence['from']))
+            print(f'\n{u} se conectó')
+            for i in self.contacts:
+                if i.jid == str(presence['from']):
+                    i.online = True
+                    break
+
+    # Get the roster (contacts list) and updates the contacts list
+    def update_roster(self, firts_time=False):
+        try:
+            roster = self.get_roster()
+            contacts_roster = []
+            for jid in roster['roster']['items'].keys():
+                contact = userDetails(jid)
+                for k, v in roster['roster']['items'][jid].items():
+                    contact.set_info(k, v)
+                contacts_roster.append(contact)
+            if firts_time:
+                self.contacts = contacts_roster
+            else:
+                self.update_contacts(contacts_roster)
+        except IqError as e:
+            print(e.iq)
+        except IqTimeout:
+            print('Tiempo de espera agotado')
+
+    # Send message and updates the chat history of the contact
+    def sendMessagesToServerSingle(self, jid, message): #send_message_to_user
+        # Send the message to the user
+        self.send_message(mto=jid + SERVER, mbody=message, mtype='chat')
+
+        # Update the chat history of the contact
+        for contact in self.contacts:
+            if contact.jid == jid:
+                contact.add_message(f'You: {message}')
+                break
+
+    # Not implemented
+    async def send_file_to_user(self, jid, file):
+        '''m = self.Message()
+        m['to'] = jid+SERVER
+        m['type'] = 'chat'
+        with open(file, 'rb') as img_file:
+            img = img_file.read()
+        if img:
+            cid = self['xep_0231'].set_bob(img, 'image/png')
+            m['body'] = 'Tried sending an image using HTML-IM + BOB'
+            m['html']['body'] = '<img src="cid:%s" />' % cid
+            m.send()'''
+        '''with open(file, 'rb') as img:
+            file = base64.b64encode(img.read()).decode('utf-8')
+
+        self.send_message(mto=jid+SERVER, mbody=file, mtype='chat')'''
+        try:
+            self.file = open(file, 'rb')
+            # Open the S5B stream in which to write to.
+            proxy = await self['xep_0065'].handshake(jid+SERVER)
+
+            # Send the entire file.
+            while True:
+                data = self.file.read(1048576)
+                if not data:
+                    break
+                await proxy.write(data)
+
+            # And finally close the stream.
+            proxy.transport.write_eof()
+        except (IqError, IqTimeout):
+            print('File transfer errored')
+        else:
+            print('File transfer finished')
+        finally:
+            self.file.close()
+
+    # Show notification when someone added you as a contact
+    def on_presence_subscribe(self, presence):
+        username = presence['from'].bare
+        print(f'\n{username} quiere agregarte a tu lista de contactos')
+
+    # Show notification when someone removed you from the contact list
+    def on_presence_unsubscribe(self, presence):
+        username = presence['from'].bare
+        print(f'\n{username} te ha eliminado de su lista de contactos')
+
+    # Show notification when someone change his status
+    def on_changed_status(self, presence):
+        username = presence['from'].bare
+        print(self.client_roster.presence[username]['status'])
+        print(f'\n{username} ha cambiado su estado a {self.client_roster.presence[username]["status"]}')
+
+    # Connect to the server, used on login and register
     def login(self):
         result = self.connect((SERVER[1:], PORT), use_ssl=False, use_tls=False)
         print(result)
@@ -195,25 +215,156 @@ class Client(ClientXMPP):
             self.process()
             return True
         return False
-####
-    # Send message and updates the chat history of the contact
-    def sendMessagesToServerSingle(self, idUser, message):
-        # Send the message to the user
-        self.send_message(mto=idUser + SERVER, mbody=message, mtype='chat')
 
-        # Update the chat history of the contact
-        for contact in self.contacts:
-            if contact.idUser == idUser:
-                contact.add_message(f'You: {message}')
-                break
+    # Show error when connection failed
+    def on_connection_failed(self, error):
+        print('\nError de conexión: %s' % error)
+        print('Presiona enter para ingresar de nuevo')
+        self.connected = False
+        self.disconnect()
 
-    # Shows the chat history of a contact
-    def chatHis(self, idUser):
+    # Leave a presence message
+    def presenceMessage(self, show, status):
+        self.send_presence(pshow=show, pstatus=status)
+
+    # Add a new contact to the contact list if it doesn't exist
+    def add_contact(self, jid, subscription_meessage):
+        can_add_contact = True
         for contact in self.contacts:
-            if contact.idUser == idUser:
-                for message in contact.messages:
-                    print(message)
-                break
+            if contact.jid == jid:
+                print('Este contacto ya existe')
+                can_add_contact = False
+                continue
+        if can_add_contact:
+            self.send_presence(
+                pto=jid + SERVER, pstatus=subscription_meessage, ptype="subscribe")
+            
+    # Add new contacts
+    def addingC(self, jid, subscription_message): #add_contact
+        # Check if the user already exists in the contact list
+        if any(contact.jid == jid for contact in self.contacts):
+            print('This user already exists')
+        else:
+            # Send a subscription request to the new contact
+            self.send_presence(pto=jid + SERVER, pstatus=subscription_message, ptype="subscribe")
+
+    # show all the users in the server or show users that match the jid
+    def gettingC(self, jid='*'):
+        iq = self.get_search_iq(jid)
+        users = []
+        try:
+            search_result = iq.send()
+            search_result = ET.fromstring(str(search_result))
+            for query in search_result:
+                for x in query:
+                    for item in x:
+                        values = {}
+                        for field in list(item):
+                            for value in list(field):
+                                values[field.attrib['var']] = value.text
+                        if values != {}:
+                            users.append(userDetails(
+                                jid=values['jid'], Email=values['Email'], Username=values['Username'], Name=values['Name']))
+        except IqError as e:
+            print(e.iq)
+        except IqTimeout:
+            print('Tiempo de espera agotado')
+        print("\nUsuarios en el servidor:")
+        for user in users:
+            print(user)
+        return users
+
+    # Get the roster (contacts list) and search for contacts that match the jid
+    def get_contact_by_jid(self, jid):
+        self.update_roster()
+        groups = self.client_roster.groups()
+        contacts = []
+        for group in groups:
+            for user in groups[group]:
+                contact = userDetails(jid=user)
+                # if user string icludes jid
+                if user.find(jid) != -1:
+                    user_roster = self.client_roster[user]
+                    contact.set_info('Name', user_roster['name'])
+                    contact.set_info(
+                        'Subscription', user_roster['subscription'])
+                    contact.set_info('Groups', user_roster['groups'])
+                    connected_roster = self.client_roster.presence(user)
+                    # Presence info set (show, status)
+                    if connected_roster.items():
+                        for _, state in connected_roster.items():
+                            for k, v in state.items():
+                                contact.set_info(k, v)
+                    contacts.append(contact)
+        print("\nContactos:")
+        for contact in contacts:
+            print(contact)
+        return contacts
+
+    # Search in the contact list and in the server
+    def searchU(self, jid):
+        self.update_contacts(self.get_contact_by_jid(jid))
+        self.gettingC(jid)
+
+    # Creates an Iq with the specific attributes
+    def create_iq(self, **kwargs):
+        iq = self.Iq()
+        iq.set_from(self.boundjid.full)
+        for k, v in kwargs.items():
+            iq[k] = v
+        return iq
+
+    # Custom Iq for search users
+    def get_search_iq(self, search_value='*'):
+        iq = self.create_iq(type="set", id="search_result",
+                            to="search." + self.boundjid.domain)
+        form = Form()
+        form.set_type("submit")
+        form.add_field(
+            var='FORM_TYPE',
+            type='hidden',
+            value='jabber:iq:search'
+        )
+        form.add_field(
+            var='Username',
+            type='boolean',
+            value=1
+        )
+        form.add_field(
+            var='search',
+            type='text-single',
+            value=search_value
+        )
+        query = ET.Element('{jabber:iq:search}query')
+        query.append(form.xml)
+        iq.append(query)
+        return iq
+
+    # Receive a new list of contacts and update the self.contacts list, adding new contacts and updating existing ones.
+    def update_contacts(self, contacts):
+        for contact in self.contacts:
+            for new_contact in contacts:
+                if contact.jid == new_contact.jid:
+                    contact.update(new_contact)
+                    break
+                else:
+                    self.contacts.append(new_contact)
+
+    # Register a new user in the server
+    def on_register(self, event):
+        if self.registering:
+            iq = self.Iq()
+            iq['type'] = 'set'
+            iq['register']['username'] = self.boundjid.user
+            iq['register']['password'] = self.password
+            iq['register']['name'] = self.Name
+            iq['register']['email'] = self.Email
+            try:
+                iq.send(now=True)
+            except IqError as e:
+                print(e.iq)
+            except IqTimeout:
+                print('Tiempo de espera agotado')
 
     # Create a group chat room
     def createGrupo(self, room):
@@ -221,13 +372,13 @@ class Client(ClientXMPP):
         room_with_server = room + ROOM_SERVER
         
         # Join the group chat room with the bound user as the owner
-        self.plugin['xep_0045'].joinMUC(room_with_server, self.boundidUser.user, wait=True)
+        self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user, wait=True)
         
         # Set the affiliation of the bound user to 'owner' in the room
-        self.plugin['xep_0045'].setAffiliation(room_with_server, self.boundidUser.full, affiliation='owner')
+        self.plugin['xep_0045'].setAffiliation(room_with_server, self.boundjid.full, affiliation='owner')
         
         # Configure the room settings, possibly with options like who can join
-        self.plugin['xep_0045'].configureRoom(room_with_server, ifrom=self.boundidUser.full)
+        self.plugin['xep_0045'].configureRoom(room_with_server, ifrom=self.boundjid.full)
         
         # Initialize an empty list to store messages for this room
         self.rooms[room] = []
@@ -238,7 +389,7 @@ class Client(ClientXMPP):
         room_with_server = room + ROOM_SERVER
         
         # Join the group chat room with the bound user
-        self.plugin['xep_0045'].joinMUC(room_with_server, self.boundidUser.user)
+        self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user)
         
         # Initialize an empty list to store messages for this room
         self.rooms[room] = []
@@ -254,162 +405,34 @@ class Client(ClientXMPP):
         if room in self.rooms:
             room_with_server = room + ROOM_SERVER
             self.send_message(mto=room_with_server, mbody=message, mtype='groupchat')
-            self.rooms[room].append(f'[{room}] {self.boundidUser.user}: {message}')
+            self.rooms[room].append(f'[{room}] {self.boundjid.user}: {message}')
 
-    # A notification will pop up when you get a group invitation
-    def groupInvite(self, inv):
-        print('\nRoom Invitation 👾')
+    # Show notification when someone joins the room and updates the room chat history
+    def muc_online(self, presence):
+        # If user joined is not the current user
+        if presence['muc']['nick'] != self.boundjid.user:
+            print(f'{presence["muc"]["nick"]} se ha conectado a la sala')
+            self.rooms[presence['muc']['room']].append(f'{presence["muc"]["nick"]} se ha conectado a la sala')
 
-    # Shows the chat history of a contact
-    def roomHis(self, room):
-        if room in self.rooms.keys():
-            for message in self.rooms[room]:
-                print(message)
-        else:
-            print('Youre not in the room! 💀')
-            
-    # Add new contacts
-    def addingC(self, idUser, subscription_message):
-        # Check if the user already exists in the contact list
-        if any(contact.idUser == idUser for contact in self.contacts):
-            print('This user already exists')
-        else:
-            # Send a subscription request to the new contact
-            self.send_presence(pto=idUser + SERVER, pstatus=subscription_message, ptype="subscribe")
-
-    # Show details of the user
-    def gettingC(self, idUser='*'):
-        iq = self.get_search_iq(idUser)
-        users = []
-        try:
-            search_result = iq.send()
-            search_result = ET.fromstring(str(search_result))
-            for query in search_result:
-                for x in query:
-                    for item in x:
-                        values = {}
-                        for field in list(item):
-                            for value in list(field):
-                                values[field.attrib['var']] = value.text
-                        if values != {}:
-                            users.append(userDetails(
-                                idUser=values['idUser'], email=values['email'], username=values['username'], name=values['name']))
-        except IqError as e:
-            print(e.iq)
-        except IqTimeout:
-            print('Times Up! ⏳')
-        print("\nUsers Connected 🟢:")
-        for user in users:
-            print(user)
-        return users
-    
-    # Leave a presence message
-    def presenceMessage(self, show, status):
-        self.send_presence(pshow=show, pstatus=status)
-
-    # Search for users
-    def searchU(self, idUser):
-        matching_contacts = self.get_contact_by_idUser(idUser)
-        self.update_contacts(matching_contacts)
-        self.get_contacts(idUser)
-    
-    # Get contacts list and search the idUser
-    def getIdUser(self, idUser):
-        self.update_roster()
-        groups = self.client_roster.groups()
-        contacts = []
-
-        for group in groups:
-            for user in groups[group]:
-                if idUser in user:
-                    user_roster = self.client_roster[user]
-                    contact = userDetails(idUser=user)
-                    contact.set_info('name', user_roster.get('name', ''))
-                    contact.set_info('Subscription', user_roster.get('subscription', ''))
-                    contact.set_info('Groups', user_roster.get('groups', ''))
-                    connected_roster = self.client_roster.presence(user)
-                    
-                    # Presence info set (show, status)
-                    for _, state in connected_roster.items():
-                        for k, v in state.items():
-                            contact.set_info(k, v)
-                    
-                    contacts.append(contact)
-
-        print("\Contacts 👥:")
-        for contact in contacts:
-            print(contact)
-        
-        return contacts
-
-    # Receive a new list of contacts and update the self.contacts list, adding new contacts and updating existing ones.
-    def updatingC(self, new_contacts):
-        for new_contact in new_contacts:
-            existing_contact = next((contact for contact in self.contacts if contact.idUser == new_contact.idUser), None)
-            if existing_contact:
-                existing_contact.update(new_contact)
-            else:
-                self.contacts.append(new_contact)
-
-     # Get the contacts list and updates it
-    def getC(self, first_time=False):
-        try:
-            # Get the current roster information from the server
-            roster = self.get_roster()
-            contacts_roster = []
-
-            # Iterate through the items in the roster
-            for idUser in roster['roster']['items'].keys():
-                # Create a userDetails object for each contact
-                contact = userDetails(idUser)
-                
-                # Iterate through the attributes of the contact and set them in the userDetails object
-                for k, v in roster['roster']['items'][idUser].items():
-                    contact.set_info(k, v)
-                
-                # Add the contact to the list of contacts
-                contacts_roster.append(contact)
-            
-            # If it's the first time updating, replace the existing contacts list with the new one
-            if first_time:
-                self.contacts = contacts_roster
-            else:
-                # Otherwise, update the existing contacts list with the new information
-                self.update_contacts(contacts_roster)
-        
-        except IqError as e:
-            # Handle IQ errors by printing the IQ packet that caused the error
-            print(e.iq)
-        except IqTimeout:
-            # Handle a timeout error by printing a message
-            print('Times Up! ⏳')
-
-    # A notification will pop up when someone's in the room now
-    def userOnlineRoom(self, presence):
-        user_nick = presence['muc']['nick']
-        room_name = presence['muc']['room']
-        
-        # Check if the user who joined is not the current user
-        if user_nick != self.boundidUser.user:
-            message = f'{user_nick} is in the room 🔅'
-            print(message)
-            self.rooms[room_name].append(message)
+    # Show notification when someone invites you to a room
+    def muc_invite(self, inv):
+        print('\ninvitacion a grupo')
 
     # Remove contacts
-    def deleteUser(self, idUser):
-        jid_to_delete = idUser + SERVER
+    def deleteFriend(self, jid):
+        jid_to_delete = jid + SERVER
         
         # Delete the roster item for the specified JID
         self.del_roster_item(jid_to_delete)
         
         # Use a list comprehension to filter out the contact to delete
-        self.contacts = [contact for contact in self.contacts if contact.idUser != idUser]
+        self.contacts = [contact for contact in self.contacts if contact.jid != jid]
 
     # Remove accounts
     def deleteAccount(self):
         iq = self.Iq()
         iq['type'] = 'set'
-        iq['from'] = self.boundidUser.bare
+        iq['from'] = self.boundjid.bare
         iq['register']['remove'] = True
         try:
             result = iq.send()
