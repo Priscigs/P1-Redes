@@ -6,7 +6,7 @@ from sleekxmpp.plugins.xep_0004.stanza.form import Form
 from userDetails import userDetails
 
 SERVER = '@alumchat.xyz'
-ROOM_SERVER = '@conference.alumchat.xyz'
+# ROOM_SERVER = '@conference.alumchat.xyz'
 PORT = 5222
 
 class Client(ClientXMPP):
@@ -49,6 +49,7 @@ class Client(ClientXMPP):
 
     def on_message(self, msg):
         show_response = True
+        self.to_chat_type = None  # Inicializa to_chat_type como None u otro valor apropiado
         # For messages received from a groupchat
         if msg['type'] == 'groupchat':
             # get the nick
@@ -85,7 +86,7 @@ class Client(ClientXMPP):
                         self.message_receiver = user
                         break
         if show_response:
-            print("Desea responder a este mensaje? (Y/n)")
+            print("Wanna Answer? (Y/n)")
             self.to_chat = True
 
     # Shows the chat history of a contact
@@ -369,7 +370,7 @@ class Client(ClientXMPP):
     # Create a group chat room
     def createGrupo(self, room):
         # Combine the room name with the server to form the complete room JID
-        room_with_server = room + ROOM_SERVER
+        room_with_server = room 
         
         # Join the group chat room with the bound user as the owner
         self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user, wait=True)
@@ -386,7 +387,7 @@ class Client(ClientXMPP):
     # Join an existing group chat room
     def joinGroup(self, room):
         # Combine the room name with the server to form the complete room JID
-        room_with_server = room + ROOM_SERVER
+        room_with_server = room 
         
         # Join the group chat room with the bound user
         self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user)
@@ -403,7 +404,7 @@ class Client(ClientXMPP):
     # Send message to a room and updates the room chat history
     def sendMessagesToServerGroup(self, room, message):
         if room in self.rooms:
-            room_with_server = room + ROOM_SERVER
+            room_with_server = room 
             self.send_message(mto=room_with_server, mbody=message, mtype='groupchat')
             self.rooms[room].append(f'[{room}] {self.boundjid.user}: {message}')
 
