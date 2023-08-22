@@ -78,3 +78,8 @@
 ```
 pip install sleekxmpp
 ```
+
+## References
+
+- The `client.py` file was based on this link: (https://sleekxmpp.readthedocs.io), a brief documentation of the library `sleekxmpp`
+
