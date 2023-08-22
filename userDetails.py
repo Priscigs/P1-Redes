@@ -1,10 +1,10 @@
 # This class contains the main details of a user (create an account or log in)
 class userDetails():
-    def __init__(self, idUser, email=None, username=None, name=None):
-        self.idUser = idUser
-        self.email = email
-        self.username = username
-        self.name = name
+    def __init__(self, jid, Email=None, Username=None, Name=None):
+        self.jid = jid
+        self.Email = Email
+        self.Username = Username
+        self.Name = Name
         self.messages = []
 
     def set_info(self, key, value):
