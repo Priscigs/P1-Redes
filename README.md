@@ -38,9 +38,9 @@
     ║ 11. >>> End                    ║
     ╚════════════════════════════════╝
 
-- ‼️ Add `@alumchat.xyz` to the registration email so it works correctly
+‼️ Add `@alumchat.xyz` to the registration email so it works correctly
 
-## Libraries required
+## Librarie required
 
 ```
 pip install sleekxmpp
