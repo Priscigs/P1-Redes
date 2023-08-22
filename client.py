@@ -105,7 +105,7 @@ class Client(ClientXMPP):
         else:
             print('Youre not in the room! 💀')
 
-    # Shows a notification and updates the contact when someones gets offline
+    # A notification will pop up when someone's off the room 
     def on_got_offline(self, presence):        
         if self.boundjid.bare not in str(presence['from']):
             u = self.jid_to_user(str(presence['from']))
@@ -115,7 +115,7 @@ class Client(ClientXMPP):
                     self.contacts.remove(i)
                     break
 
-    # Shows a notification and updates the contact when someones gets online
+    # A notification will pop up when someone's in the room now
     def on_got_online(self, presence):
         if self.boundjid.bare not in str(presence['from']):
             u = self.jid_to_user(str(presence['from']))
@@ -154,43 +154,6 @@ class Client(ClientXMPP):
             if contact.jid == jid:
                 contact.add_message(f'You: {message}')
                 break
-
-    # Not implemented
-    async def send_file_to_user(self, jid, file):
-        '''m = self.Message()
-        m['to'] = jid+SERVER
-        m['type'] = 'chat'
-        with open(file, 'rb') as img_file:
-            img = img_file.read()
-        if img:
-            cid = self['xep_0231'].set_bob(img, 'image/png')
-            m['body'] = 'Tried sending an image using HTML-IM + BOB'
-            m['html']['body'] = '<img src="cid:%s" />' % cid
-            m.send()'''
-        '''with open(file, 'rb') as img:
-            file = base64.b64encode(img.read()).decode('utf-8')
-
-        self.send_message(mto=jid+SERVER, mbody=file, mtype='chat')'''
-        try:
-            self.file = open(file, 'rb')
-            # Open the S5B stream in which to write to.
-            proxy = await self['xep_0065'].handshake(jid+SERVER)
-
-            # Send the entire file.
-            while True:
-                data = self.file.read(1048576)
-                if not data:
-                    break
-                await proxy.write(data)
-
-            # And finally close the stream.
-            proxy.transport.write_eof()
-        except (IqError, IqTimeout):
-            print('File transfer errored')
-        else:
-            print('File transfer finished')
-        finally:
-            self.file.close()
 
     # Show notification when someone added you as a contact
     def on_presence_subscribe(self, presence):
@@ -415,7 +378,7 @@ class Client(ClientXMPP):
             print(f'{presence["muc"]["nick"]} se ha conectado a la sala')
             self.rooms[presence['muc']['room']].append(f'{presence["muc"]["nick"]} se ha conectado a la sala')
 
-    # Show notification when someone invites you to a room
+    # A notification will pop up when you get a group invitation
     def muc_invite(self, inv):
         print('\ninvitacion a grupo')
 

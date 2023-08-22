@@ -4,7 +4,8 @@ SERVER = '@alumchat.xyz'
 
 is_authenticated = False
 
-menu_login = '''
+def print_main_menu():
+    main_menu = '''
     ╔═══════════════╗
     ║      Menu     ║
     ╠═══════════════╣
@@ -12,9 +13,11 @@ menu_login = '''
     ║  2. Register  ║
     ║  3. Log Out   ║
     ╚═══════════════╝
-'''
+    '''
+    print(main_menu)
 
-menu = '''
+def print_authenticated_menu():
+    authenticated_menu = '''
     ╔════════════════════════════════╗
     ║              Menu              ║
     ╠════════════════════════════════╣
@@ -30,9 +33,10 @@ menu = '''
     ║ 10. >>> Delete Account         ║
     ║ 11. >>> End                    ║
     ╚════════════════════════════════╝
-'''
+    '''
+    print(authenticated_menu)
 
-def get_show_presence(value):
+def status_pres(value):
     if value == "1":
         return "available"
     elif value == "2":
@@ -49,7 +53,7 @@ client = None
 
 while login_option != "3":
     is_authenticated = False # Reset the authentication flag on logout
-    print(menu_login)
+    print_main_menu()
     login_option = input("Choose an Option 🤹🏼‍♀️: ")
     # Login
     if login_option == "1":
@@ -79,77 +83,89 @@ while login_option != "3":
     else:
         print("Invalid Option ❌")
 
-    # Main menu for authenticated users
+    def option1(client):
+        client.gettingC()
+
+    def option2(client):
+        user_to_add = input("Enter the username to add: ")
+        subscription_message = input("Enter the subscription request message: ")
+        client.addingC(user_to_add, subscription_message)
+        print("\nSubscription sent")
+
+    def option3(client):
+        user_to_search = input("Enter the username to search for: ")
+        client.searchU(user_to_search)
+
+    def option4(client):
+        user_to_send = input("Enter the username to send the message to: ")
+        client.chatHis(user_to_send)
+        message = input(">>> (You): ")
+        client.sendMessagesToServerSingle(user_to_send, message)
+
+    def option5(client):
+        group_name = input("Enter the groups name: >>> ")
+        client.createGrupo(group_name)
+        print("\nGroup Created Succesfully ✅")
+
+    def option6(client):
+        group_name = input("Enter the groups name: >>> ")
+        client.joinGroup(group_name)
+        print("\nYou have joined the group sucessfully 🥳")
+
+    def option7(client):
+        group_to_send = input("Enter the groups name to send the message: >>> ")
+        client.roomHis(group_to_send)
+        message = input(">>> (You): ")
+        client.sendMessagesToServerGroup(group_to_send, message)
+
+    def option8(client):
+        print("\n1. Available\n2. Away\n3. Not Available\n4. Busy")
+        value = input("Enter your status: ")
+        message = input("Enter the presence message: ")
+        show = status_pres(value)
+        client.presenceMessage(show, message)
+
+    def option9(client):
+        user_to_delete = input("Enter the username to delete: ")
+        client.deleteFriend(user_to_delete)
+        print("\nContact deleted 🤡")
+
+    def option10(client):
+        client.deleteAccount()
+        print("\nAccount Deleted 💀")
+        print("Closing Session...")
+        client.disconnect()
+
+    def option11(client):
+        print("Closing Session...")
+        client.disconnect()
+        
+    menu_options = {
+        "1": option1,
+        "2": option2,
+        "3": option3,
+        "4": option4,
+        "5": option5,
+        "6": option6,
+        "7": option7,
+        "8": option8,
+        "9": option9,
+        "10": option10,
+        "11": option11
+    }
+
     if is_authenticated:
         option = ""
         while option != "11":
-            print(menu)
+            print_authenticated_menu()
             option = input("Choose an Option 🤹🏼‍♀️: ")
-            if not client.connected:
+
+            # Verifica si la opción existe en el diccionario y la ejecuta si existe
+            if option in menu_options:
+                menu_options[option](client)
+            elif not client.connected:
                 option = "11"
-            # Show connected users
-            if option == "1":
-                client.gettingC()
-            # Add contact
-            elif option == "2":
-                user_to_add = input("Enter the username of the user to add: ")
-                subscription_message = input("Enter the subscription request message: ")
-                client.addingC(user_to_add, subscription_message)
-                print("\nSubscription sent")
-            # Show contact details
-            elif option == "3":
-                user_to_search = input("Enter the username of the user to search for: ")
-                client.searchU(user_to_search)
-            # Send message to a user
-            elif option == "4":
-                print("\n1. Send Message\n2. Send File")
-                message_option = input("Select an Option 🤹🏼‍♀️: ")
-                if message_option == "1":
-                    user_to_send = input("Enter the username of the user to send the message to: ")
-                    client.chatHis(user_to_send)
-                    message = input(">>> (You): ")
-                    client.sendMessagesToServerSingle(user_to_send, message)
-                elif message_option == "2":
-                    user_to_send = input("Enter the username of the user to send the file to: ")
-                    file_path = input("Enter the path of the file to send: ")
-                    client.send_file_to_user(user_to_send, file_path)
-            # Create group
-            elif option == "5":
-                group_name = input("Enter the groups name: >>> ")
-                client.createGrupo(group_name)
-                print("\nGroup Created Succesfully ✅")
-            # Join group
-            elif option == "6":
-                group_name = input("Enter the groups name: >>> ")
-                client.joinGroup(group_name)
-                print("\nYou have joined the group sucessfully 🥳")
-            # Send message to group
-            elif option == "7":
-                group_to_send = input("Enter the groups name to send the message: >>> ")
-                client.roomHis(group_to_send)
-                message = input(">>> (You): ")
-                client.sendMessagesToServerGroup(group_to_send, message)
-            # Send presence message
-            elif option == "8":
-                print("\n1. Available\n2. Away\n3. Not Available\n4. Busy")
-                value = input("Enter your status: ")
-                message = input("Enter the presence message: ")
-                show = get_show_presence(value)
-                client.presenceMessage(show, message)
-            # Delete contact
-            elif option == "9":
-                user_to_delete = input("Enter the username to delete: ")
-                client.deleteFriend(user_to_delete)
-                print("\nContact deleted 🤡")
-            # Delete account
-            elif option == "10":
-                client.deleteAccount()
-                print("\nAccount Deleted 💀")
-                option = "11"
-            # Logout
-            elif option == "11":
-                print("Closing Session...")
-                client.disconnect()
+
             # This is used to respond to a received message
             elif option == "Y" or option == "y":
                 # If a new message is received waiting to be responded to
