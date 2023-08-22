@@ -1,9 +1,9 @@
 # P1-Redes
 
-### - Priscilla González Sandoval - 20689
-### - Universidad del Valle de Guatemala
-### - Catedrático: Jorge Yass
-### - Redes | Sección 20
+- Priscilla González Sandoval - 20689
+- Universidad del Valle de Guatemala
+- Catedrático: Jorge Yass
+- Redes | Sección 20
 
 ## Objectives
 
@@ -37,6 +37,8 @@
     ║ 10. >>> Delete Account         ║
     ║ 11. >>> End                    ║
     ╚════════════════════════════════╝
+
+- ‼️ Add `@alumchat.xyz` to the registration email so it works correctly
 
 ## Libraries required
 
