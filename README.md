@@ -73,7 +73,7 @@
 - Option 11 -> End
     - Log Out
 
-## Librarie required
+## Library required
 
 ```
 pip install sleekxmpp
