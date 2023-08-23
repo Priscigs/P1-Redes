@@ -1,3 +1,8 @@
+# **********************************
+#    Priscilla González - 20689
+#              Redes
+# **********************************
+
 from client import Client
 
 SERVER = '@alumchat.xyz'
@@ -160,7 +165,7 @@ while login_option != "3":
             print_authenticated_menu()
             option = input("Choose an Option 🤹🏼‍♀️: ")
 
-            # Verifica si la opción existe en el diccionario y la ejecuta si existe
+            # Dictionary options
             if option in menu_options:
                 menu_options[option](client)
             elif not client.connected:

@@ -1,3 +1,8 @@
+# **********************************
+#    Priscilla González - 20689
+#              Redes
+# **********************************
+
 import base64
 from sleekxmpp import ClientXMPP
 from sleekxmpp.xmlstream.stanzabase import ET
@@ -6,7 +11,12 @@ from sleekxmpp.plugins.xep_0004.stanza.form import Form
 from userDetails import userDetails
 
 SERVER = '@alumchat.xyz'
-# ROOM_SERVER = '@conference.alumchat.xyz'
+
+# Multi-User Chat https://xmpp.org/extensions/xep-0045.html
+# Each room is identified as a "room JID" <room@service> (e.g., <jdev@conference.jabber.org>), 
+# where "room" is the name of the room and "service" is the hostname at which the multi-user chat service is running.
+# So added @conference to the server
+ROOM_SERVER = '@conference.alumchat.xyz'
 PORT = 5222
 
 class Client(ClientXMPP):
@@ -15,8 +25,8 @@ class Client(ClientXMPP):
         self.password = password
         self.Name = Name
         self.Email = Email
-        self.registering = registering # True if client was created for registration, False if client was created for login
-        self.to_chat = False # Indicates if the client is waiting for a response to a message
+        self.registering = registering 
+        self.to_chat = False 
         self.contacts = []
         self.rooms = {}
         self.connected = False
@@ -47,6 +57,7 @@ class Client(ClientXMPP):
         self.update_roster(firts_time=True)
         self.connected = True
 
+    # Send a message to an user
     def on_message(self, msg):
         show_response = True
         self.to_chat_type = None  # Inicializa to_chat_type como None u otro valor apropiado
@@ -105,21 +116,21 @@ class Client(ClientXMPP):
         else:
             print('Youre not in the room! 💀')
 
-    # A notification will pop up when someone's off the room 
+    # A notification will pop uo when someone's offline the server
     def on_got_offline(self, presence):        
         if self.boundjid.bare not in str(presence['from']):
             u = self.jid_to_user(str(presence['from']))
-            print(f'\n{u} se desconectó')
+            print(f'\n{u} is disconnected!')
             for i in self.contacts:
                 if i.jid == str(presence['from']):
                     self.contacts.remove(i)
                     break
 
-    # A notification will pop up when someone's in the room now
+    # A notification will pop uo when someone's online
     def on_got_online(self, presence):
         if self.boundjid.bare not in str(presence['from']):
             u = self.jid_to_user(str(presence['from']))
-            print(f'\n{u} se conectó')
+            print(f'\n{u} is connected!')
             for i in self.contacts:
                 if i.jid == str(presence['from']):
                     i.online = True
@@ -142,7 +153,7 @@ class Client(ClientXMPP):
         except IqError as e:
             print(e.iq)
         except IqTimeout:
-            print('Tiempo de espera agotado')
+            print('Times Up! ⏳')
 
     # Send message and updates the chat history of the contact
     def sendMessagesToServerSingle(self, jid, message): #send_message_to_user
@@ -152,24 +163,24 @@ class Client(ClientXMPP):
         # Update the chat history of the contact
         for contact in self.contacts:
             if contact.jid == jid:
-                contact.add_message(f'You: {message}')
+                contact.add_message(f'>>> (You): {message}')
                 break
 
-    # Show notification when someone added you as a contact
+    # A notification will pop up when someone added you as a friend
     def on_presence_subscribe(self, presence):
         username = presence['from'].bare
-        print(f'\n{username} quiere agregarte a tu lista de contactos')
+        print(f'\n{username} wants to add you as a friend 🫶🏼')
 
-    # Show notification when someone removed you from the contact list
+    # A notification will pop up when someone removed you from their friend's list
     def on_presence_unsubscribe(self, presence):
         username = presence['from'].bare
-        print(f'\n{username} te ha eliminado de su lista de contactos')
+        print(f'\n{username} has removed you from their friends list 🤡')
 
-    # Show notification when someone change his status
+    # A notification woll pop up when a status has changed
     def on_changed_status(self, presence):
         username = presence['from'].bare
         print(self.client_roster.presence[username]['status'])
-        print(f'\n{username} ha cambiado su estado a {self.client_roster.presence[username]["status"]}')
+        print(f'\n{username} has changed his/her status to: {self.client_roster.presence[username]["status"]}')
 
     # Connect to the server, used on login and register
     def login(self):
@@ -180,10 +191,9 @@ class Client(ClientXMPP):
             return True
         return False
 
-    # Show error when connection failed
+    # Failed connection
     def on_connection_failed(self, error):
-        print('\nError de conexión: %s' % error)
-        print('Presiona enter para ingresar de nuevo')
+        print(f'\nError!!! ❌: {error}\nPress "Enter" to try again!!')
         self.connected = False
         self.disconnect()
 
@@ -196,7 +206,7 @@ class Client(ClientXMPP):
         can_add_contact = True
         for contact in self.contacts:
             if contact.jid == jid:
-                print('Este contacto ya existe')
+                print('This user already exists')
                 can_add_contact = False
                 continue
         if can_add_contact:
@@ -232,8 +242,8 @@ class Client(ClientXMPP):
         except IqError as e:
             print(e.iq)
         except IqTimeout:
-            print('Tiempo de espera agotado')
-        print("\nUsuarios en el servidor:")
+            print('Times Up! ⏳')
+        print("\nUsers Connected:")
         for user in users:
             print(user)
         return users
@@ -260,7 +270,7 @@ class Client(ClientXMPP):
                             for k, v in state.items():
                                 contact.set_info(k, v)
                     contacts.append(contact)
-        print("\nContactos:")
+        print("\nFriends List 👥:")
         for contact in contacts:
             print(contact)
         return contacts
@@ -328,12 +338,12 @@ class Client(ClientXMPP):
             except IqError as e:
                 print(e.iq)
             except IqTimeout:
-                print('Tiempo de espera agotado')
+                print('Times Up! ⏳')
 
     # Create a group chat room
     def createGrupo(self, room):
         # Combine the room name with the server to form the complete room JID
-        room_with_server = room 
+        room_with_server = room + ROOM_SERVER
         
         # Join the group chat room with the bound user as the owner
         self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user, wait=True)
@@ -350,7 +360,7 @@ class Client(ClientXMPP):
     # Join an existing group chat room
     def joinGroup(self, room):
         # Combine the room name with the server to form the complete room JID
-        room_with_server = room 
+        room_with_server = room + ROOM_SERVER
         
         # Join the group chat room with the bound user
         self.plugin['xep_0045'].joinMUC(room_with_server, self.boundjid.user)
@@ -367,20 +377,20 @@ class Client(ClientXMPP):
     # Send message to a room and updates the room chat history
     def sendMessagesToServerGroup(self, room, message):
         if room in self.rooms:
-            room_with_server = room 
+            room_with_server = room + ROOM_SERVER
             self.send_message(mto=room_with_server, mbody=message, mtype='groupchat')
             self.rooms[room].append(f'[{room}] {self.boundjid.user}: {message}')
 
-    # Show notification when someone joins the room and updates the room chat history
+    # A notification will pop up when someone's in the room now
     def muc_online(self, presence):
         # If user joined is not the current user
         if presence['muc']['nick'] != self.boundjid.user:
-            print(f'{presence["muc"]["nick"]} se ha conectado a la sala')
-            self.rooms[presence['muc']['room']].append(f'{presence["muc"]["nick"]} se ha conectado a la sala')
+            print(f'{presence["muc"]["nick"]} is now in the room 🟢')
+            self.rooms[presence['muc']['room']].append(f'{presence["muc"]["nick"]} is now in the room 🟢')
 
-    # A notification will pop up when you get a group invitation
+    # A notification will pop up when you're invited to a new eoom
     def muc_invite(self, inv):
-        print('\ninvitacion a grupo')
+        print('\nRoom Invitation 👾')
 
     # Remove contacts
     def deleteFriend(self, jid):
